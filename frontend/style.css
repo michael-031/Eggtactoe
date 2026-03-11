@@ -1,0 +1,569 @@
+/* ============================================================
+   EGG CHESS – stylesheet
+   Palette:
+     Maroon  (Player 1):  #7B1C28  #A52535  #4F0F18
+     Gold    (Player 2):  #B8860B  #DAA520  #FFD700
+     Teal    (accent):    #0D9B84  #12C4A7
+     Cream   (text/bg):   #FFF3D6  #C9B585
+     Wood    (board):     #2C1206  #5C2E0E  #7A4020  #C4876A
+   ============================================================ */
+
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --p1:         #7B1C28;
+  --p1-light:   #B52535;
+  --p1-bright:  #E63950;
+  --p1-dark:    #4F0F18;
+  --p1-glow:    rgba(181, 37, 53, 0.65);
+
+  --p2:         #B8860B;
+  --p2-light:   #DAA520;
+  --p2-bright:  #FFD700;
+  --p2-dark:    #7A5C00;
+  --p2-glow:    rgba(255, 215, 0, 0.55);
+
+  --teal:       #0D9B84;
+  --teal-light: #12C4A7;
+  --teal-glow:  rgba(18, 196, 167, 0.55);
+
+  --cream:      #FFF3D6;
+  --cream-dim:  #C9B585;
+
+  --wood-dark:  #2C1206;
+  --wood:       #5C2E0E;
+  --wood-mid:   #7A4020;
+  --wood-light: #A05A30;
+  --wood-tan:   #C4876A;
+  --cell-bg:    #E8C9A0;
+  --cell-dark:  #B89060;
+  --cell-alt:   #D4AA80;
+
+  --bg-deep:    #060E06;
+  --bg:         #0E1E0E;
+  --bg-card:    #162016;
+
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+body {
+  background: radial-gradient(ellipse at center, #1a2e1a 0%, var(--bg-deep) 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cream);
+  overflow-x: hidden;
+}
+
+/* ── Game wrapper ─────────────────────────────────────────── */
+.game-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 12px;
+  width: 100%;
+  max-width: 560px;
+}
+
+/* ── Title ───────────────────────────────────────────────── */
+.title-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.title-bar h1 {
+  font-size: 2rem;
+  letter-spacing: 0.18em;
+  background: linear-gradient(135deg, var(--p1-light) 0%, var(--p2-bright) 55%, var(--p2-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  user-select: none;
+}
+.title-egg { font-size: 1.6rem; }
+.title-egg.right { transform: scaleX(-1); }
+
+/* ── Player zones ─────────────────────────────────────────── */
+.player-zone {
+  width: 100%;
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  border: 2px solid transparent;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.p1-zone {
+  background: linear-gradient(135deg, rgba(79,15,24,0.55), rgba(30,5,10,0.7));
+  border-color: var(--p1);
+}
+.p2-zone {
+  background: linear-gradient(135deg, rgba(122,92,0,0.45), rgba(30,22,0,0.7));
+  border-color: var(--p2);
+}
+.player-zone.active-turn {
+  border-color: var(--teal-light);
+  box-shadow: 0 0 18px var(--teal-glow);
+}
+
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.player-crown {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.p1-crown { color: var(--p1-bright); filter: drop-shadow(0 0 4px var(--p1-glow)); }
+.p2-crown { color: var(--p2-bright); filter: drop-shadow(0 0 4px var(--p2-glow)); }
+.player-name {
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  font-weight: bold;
+  color: var(--cream);
+}
+.turn-pip {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid transparent;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.turn-pip.active {
+  background: var(--teal-light);
+  border-color: var(--teal-light);
+  box-shadow: 0 0 8px var(--teal-glow);
+  animation: pip-pulse 1.2s ease-in-out infinite;
+}
+
+/* ── Piece tray ───────────────────────────────────────────── */
+.piece-tray {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 18px;
+  min-height: 80px;
+}
+
+.piece-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  position: relative;
+}
+.piece-group:hover:not(.empty):not(.disabled) {
+  background: rgba(255,255,255,0.07);
+  transform: translateY(-2px);
+}
+.piece-group.selected {
+  background: rgba(18,196,167,0.15);
+  border-color: var(--teal-light);
+  box-shadow: 0 0 12px var(--teal-glow);
+  transform: translateY(-3px);
+}
+.piece-group.empty, .piece-group.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.piece-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--cream-dim);
+  text-transform: uppercase;
+}
+.piece-count {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--cream);
+}
+
+/* ── Egg shapes ───────────────────────────────────────────── */
+.egg {
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+/* Sizes */
+.egg.small  { width: 28px; height: 36px; }
+.egg.medium { width: 42px; height: 54px; }
+.egg.large  { width: 56px; height: 70px; }
+
+/* Player colours */
+.egg.p1 {
+  background: radial-gradient(ellipse at 38% 32%, #E63950, var(--p1), var(--p1-dark));
+  border: 2px solid var(--p1-dark);
+  box-shadow:
+    inset 0 4px 6px rgba(255,120,140,0.35),
+    inset 0 -3px 6px rgba(0,0,0,0.45),
+    0 2px 8px rgba(123,28,40,0.5);
+}
+.egg.p2 {
+  background: radial-gradient(ellipse at 38% 32%, #FFD700, var(--p2), var(--p2-dark));
+  border: 2px solid var(--p2-dark);
+  box-shadow:
+    inset 0 4px 6px rgba(255,255,120,0.4),
+    inset 0 -3px 6px rgba(0,0,0,0.45),
+    0 2px 8px rgba(184,134,11,0.5);
+}
+
+/* Shine dot */
+.egg::before {
+  content: '';
+  position: absolute;
+  top: 18%;
+  left: 22%;
+  width: 28%;
+  height: 22%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  pointer-events: none;
+}
+
+/* Crown badge on large eggs */
+.egg.large::after {
+  content: '♛';
+  position: absolute;
+  bottom: 4px;
+  font-size: 0.55rem;
+  line-height: 1;
+}
+.egg.p1.large::after { color: rgba(255,180,190,0.85); }
+.egg.p2.large::after { color: rgba(255,255,180,0.85); }
+
+/* Dot badge on medium eggs */
+.egg.medium::after {
+  content: '●';
+  position: absolute;
+  bottom: 5px;
+  font-size: 0.45rem;
+  line-height: 1;
+}
+.egg.p1.medium::after { color: rgba(255,180,190,0.75); }
+.egg.p2.medium::after { color: rgba(255,255,180,0.75); }
+
+/* Piece in tray when selected */
+.piece-group.selected .egg {
+  box-shadow:
+    inset 0 4px 6px rgba(255,255,180,0.3),
+    0 0 16px var(--teal-glow),
+    0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* ── Board disc ───────────────────────────────────────────── */
+.board-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-disc {
+  position: relative;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 30% 25%, #9A5C30 0%, #6B3515 35%, #4A2008 65%, #2C1206 100%);
+  box-shadow:
+    0 0 0 10px #1A0A03,
+    0 0 0 14px var(--wood-mid),
+    0 10px 40px rgba(0,0,0,0.8),
+    inset 0 4px 12px rgba(255,200,120,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* decorative ring grooves */
+.board-ring-outer,
+.board-ring-inner {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255,200,100,0.12);
+  pointer-events: none;
+}
+.board-ring-outer { inset: 18px; }
+.board-ring-inner { inset: 36px; }
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 7px;
+  width: 280px;
+  height: 280px;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Board cells ─────────────────────────────────────────── */
+.cell {
+  border-radius: 9px;
+  border: 2px solid var(--cell-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+  overflow: visible;
+  min-height: 0;
+}
+
+/* checkerboard tint */
+.cell:nth-child(odd)  { background: var(--cell-bg); }
+.cell:nth-child(even) { background: var(--cell-alt); }
+
+.cell:hover { transform: scale(1.04); }
+
+.cell.valid-move {
+  border-color: var(--teal-light);
+  box-shadow: 0 0 14px var(--teal-glow);
+  animation: cell-pulse 1.1s ease-in-out infinite alternate;
+}
+.cell.valid-move:hover {
+  transform: scale(1.06);
+  box-shadow: 0 0 22px var(--teal-light);
+}
+
+.cell.winning-cell {
+  border-color: var(--p2-bright);
+  box-shadow: 0 0 22px var(--p2-glow), 0 0 8px var(--p2-bright);
+  animation: win-flash 0.7s ease-in-out infinite alternate;
+}
+.cell.winning-cell.p1-win {
+  border-color: var(--p1-bright);
+  box-shadow: 0 0 22px var(--p1-glow), 0 0 8px var(--p1-bright);
+}
+
+/* stack depth badge */
+.cell .stack-badge {
+  position: absolute;
+  bottom: 3px;
+  right: 4px;
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.55);
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* ── Status bar ───────────────────────────────────────────── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.status-msg {
+  font-size: 0.95rem;
+  letter-spacing: 0.07em;
+  color: var(--cream-dim);
+  text-align: center;
+}
+.status-msg strong {
+  color: var(--cream);
+}
+
+.btn-reset {
+  padding: 9px 22px;
+  border-radius: 8px;
+  border: 2px solid var(--teal);
+  background: transparent;
+  color: var(--teal-light);
+  font-family: inherit;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.btn-reset:hover {
+  background: var(--teal);
+  color: #000;
+  box-shadow: 0 0 12px var(--teal-glow);
+}
+
+/* ── Hint bubble ─────────────────────────────────────────── */
+.hint-bubble {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: rgba(13,155,132,0.92);
+  color: #000;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.3s, opacity 0.3s;
+  white-space: nowrap;
+  z-index: 100;
+}
+.hint-bubble.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Win overlay ─────────────────────────────────────────── */
+.win-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fade-in 0.35s ease;
+}
+.win-overlay.hidden { display: none; }
+
+.win-card {
+  background: linear-gradient(145deg, #1A140A, #2C1C0A);
+  border: 3px solid var(--p2-bright);
+  border-radius: 20px;
+  padding: 40px 50px;
+  text-align: center;
+  box-shadow: 0 0 60px var(--p2-glow), 0 20px 60px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: card-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.win-card.p1-win-card {
+  border-color: var(--p1-bright);
+  box-shadow: 0 0 60px var(--p1-glow), 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.win-egg-anim {
+  width: 80px;
+  height: 100px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  animation: egg-bounce 0.9s ease-in-out infinite alternate;
+}
+.win-egg-anim.p1 {
+  background: radial-gradient(ellipse at 38% 32%, #E63950, var(--p1), var(--p1-dark));
+  box-shadow: 0 0 30px var(--p1-glow);
+}
+.win-egg-anim.p2 {
+  background: radial-gradient(ellipse at 38% 32%, #FFD700, var(--p2), var(--p2-dark));
+  box-shadow: 0 0 30px var(--p2-glow);
+}
+
+#win-title {
+  font-size: 1.8rem;
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, var(--p2-bright), var(--p2-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.p1-win-card #win-title {
+  background: linear-gradient(135deg, var(--p1-bright), var(--p1-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+#win-sub {
+  color: var(--cream-dim);
+  font-size: 0.95rem;
+}
+.btn-win-reset {
+  margin-top: 8px;
+}
+
+/* ── Keyframes ───────────────────────────────────────────── */
+@keyframes pip-pulse {
+  0%,100% { box-shadow: 0 0 6px var(--teal-glow); }
+  50%      { box-shadow: 0 0 14px var(--teal-light); }
+}
+
+@keyframes cell-pulse {
+  from { box-shadow: 0 0 8px var(--teal-glow); }
+  to   { box-shadow: 0 0 20px var(--teal-light); }
+}
+
+@keyframes win-flash {
+  from { box-shadow: 0 0 14px var(--p2-glow); }
+  to   { box-shadow: 0 0 30px var(--p2-bright); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes card-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes egg-bounce {
+  from { transform: translateY(0)   scale(1, 1);    }
+  to   { transform: translateY(-18px) scale(0.95, 1.05); }
+}
+
+/* ── Place animation ─────────────────────────────────────── */
+@keyframes egg-drop {
+  0%   { transform: scale(0.4) translateY(-30px); opacity: 0; }
+  70%  { transform: scale(1.1) translateY(4px);   opacity: 1; }
+  100% { transform: scale(1)   translateY(0);     opacity: 1; }
+}
+.egg.just-placed {
+  animation: egg-drop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ── Drag & drop ─────────────────────────────────────────── */
+
+/* Show grab cursor on draggable piece groups */
+.piece-group[draggable="true"] { cursor: grab; }
+.piece-group[draggable="true"]:active { cursor: grabbing; }
+
+/* The group fades while its egg is being dragged */
+.piece-group.dragging {
+  opacity: 0.4;
+  transform: scale(0.93);
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+/* Cell lit up when a dragged egg hovers over a valid target */
+.cell.drag-over {
+  background: rgba(18, 196, 167, 0.22) !important;
+  border-color: var(--teal-light) !important;
+  box-shadow: 0 0 22px var(--teal-glow) !important;
+  transform: scale(1.07);
+}
+
+/* Cell tinted red when the dragged egg can't be dropped here */
+.cell.drag-over-invalid {
+  background: rgba(255, 80, 80, 0.15) !important;
+  border-color: #ff5555 !important;
+  box-shadow: 0 0 14px rgba(255, 85, 85, 0.4) !important;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 420px) {
+  .board-disc { width: 300px; height: 300px; }
+  .board-grid { width: 232px; height: 232px; gap: 5px; }
+  .title-bar h1 { font-size: 1.5rem; }
+}

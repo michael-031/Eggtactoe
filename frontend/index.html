@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Egg Chess</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="game-wrapper">
+
+    <!-- ── Title ───────────────────────────────────────── -->
+    <header class="title-bar">
+      <span class="title-egg left">🥚</span>
+      <h1>EGG&nbsp;CHESS</h1>
+      <span class="title-egg right">🥚</span>
+    </header>
+
+    <!-- ── Player 2 (top) ──────────────────────────────── -->
+    <section class="player-zone p2-zone" id="p2-zone">
+      <div class="player-header">
+        <div class="player-crown p2-crown">♛</div>
+        <span class="player-name" id="p2-name">Player 2</span>
+        <div class="turn-pip" id="p2-pip"></div>
+      </div>
+      <div class="piece-tray" id="p2-tray"></div>
+    </section>
+
+    <!-- ── Board ───────────────────────────────────────── -->
+    <main class="board-wrap">
+      <div class="board-disc">
+        <div class="board-ring-outer"></div>
+        <div class="board-ring-inner"></div>
+        <div class="board-grid" id="board-grid">
+          <!-- 9 cells injected by JS -->
+        </div>
+      </div>
+    </main>
+
+    <!-- ── Player 1 (bottom) ───────────────────────────── -->
+    <section class="player-zone p1-zone" id="p1-zone">
+      <div class="player-header">
+        <div class="player-crown p1-crown">♚</div>
+        <span class="player-name" id="p1-name">Player 1</span>
+        <div class="turn-pip" id="p1-pip"></div>
+      </div>
+      <div class="piece-tray" id="p1-tray"></div>
+    </section>
+
+    <!-- ── Status bar ─────────────────────────────────── -->
+    <footer class="status-bar">
+      <p class="status-msg" id="status-msg">Connecting…</p>
+      <button class="btn-reset" id="btn-reset">New Game</button>
+    </footer>
+
+  </div>
+
+  <!-- Selection hint tooltip -->
+  <div class="hint-bubble" id="hint-bubble">Click a cell to place</div>
+
+  <!-- Win overlay -->
+  <div class="win-overlay hidden" id="win-overlay">
+    <div class="win-card">
+      <div class="win-egg-anim" id="win-egg"></div>
+      <h2 id="win-title">Player 1 Wins!</h2>
+      <p id="win-sub">Three in a row!</p>
+      <button class="btn-reset btn-win-reset" id="btn-win-reset">Play Again</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
