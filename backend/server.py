@@ -3,7 +3,9 @@ Egg Chess – Flask REST API
 Run:  python server.py
 """
 
-from flask import Flask, jsonify, request
+import os
+
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from game import EggChessGame
 from ai import get_ai_move
@@ -11,6 +13,20 @@ from rooms import create_room, join_room, get_room, cleanup_expired
 
 app = Flask(__name__)
 CORS(app)
+
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+
+# ── Serve static frontend ──────────────────────────────────────────────────────
+
+@app.get("/")
+def serve_index():
+    return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.get("/<path:filename>")
+def serve_static(filename):
+    return send_from_directory(FRONTEND_DIR, filename)
 
 game = EggChessGame()
 
@@ -126,4 +142,5 @@ def room_reset_route(rid):
 
 
 if __name__ == "__main__":
-    app.run(port=3001, debug=True)
+    port = int(os.environ.get("PORT", 3001))
+    app.run(host="0.0.0.0", port=port, debug=False)

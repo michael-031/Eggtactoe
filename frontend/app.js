@@ -3,7 +3,11 @@
    Communicates with Flask backend at localhost:3001
    ============================================================ */
 
-const API = "http://localhost:3001/api";
+// Use absolute URL when opening frontend/index.html directly as a file;
+// use relative URL when served from Flask (local or deployed).
+const API = location.protocol === "file:"
+  ? "http://localhost:3001/api"
+  : "/api";
 
 const SIZE_VALUE = { small: 1, medium: 2, large: 3 };
 const SIZE_LABEL  = { small: "S", medium: "M", large: "L" };
