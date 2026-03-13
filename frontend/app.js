@@ -14,6 +14,17 @@ let selectedSize = null;   // 'small' | 'medium' | 'large' | null
 let lastPlaced   = -1;     // cell index just placed (for drop animation)
 let dragState    = null;   // { player, size } while a drag is in flight
 
+// ── AI mode state ──────────────────────────────────────────
+let gameMode        = "pvp"; // "pvp" | "pva" | "online"
+let aiPlayer        = 2;     // AI always plays as Player 2
+let aiThinking      = false; // true while waiting for Gemini response
+let aiMoveScheduled = false; // prevents double setTimeout scheduling
+
+// ── Online mode state ──────────────────────────────────────
+let roomId    = null;   // active room code, e.g. "XK8M2P"
+let myPlayer  = null;   // 1 | 2 | null  (null = not in a room)
+let pollTimer = null;   // setInterval ID for state polling
+
 // ── DOM refs ──────────────────────────────────────────────
 const boardEl    = document.getElementById("board-grid");
 const p1TrayEl   = document.getElementById("p1-tray");
@@ -30,9 +41,61 @@ const winEggEl   = document.getElementById("win-egg");
 const winTitleEl = document.getElementById("win-title");
 const winSubEl   = document.getElementById("win-sub");
 
+// ── AI DOM refs ────────────────────────────────────────────
+const modePvpEl     = document.getElementById("mode-pvp");
+const modePvaEl     = document.getElementById("mode-pva");
+const apiKeyRowEl   = document.getElementById("api-key-row");
+const apiKeyInputEl = document.getElementById("api-key-input");
+const aiThinkingEl  = document.getElementById("ai-thinking");
+const p2AiBadgeEl   = document.getElementById("p2-ai-badge");
+
+// ── Online DOM refs ────────────────────────────────────────
+const modeOnlineEl      = document.getElementById("mode-online");
+const onlineLobbyEl     = document.getElementById("online-lobby");
+const lobbyCreateEl     = document.getElementById("lobby-create");
+const lobbyWaitingEl    = document.getElementById("lobby-waiting");
+const roomCodeDisplayEl = document.getElementById("room-code-display");
+const waitingMsgEl      = document.getElementById("waiting-msg");
+const joinCodeInputEl   = document.getElementById("join-code-input");
+
 // ── Bootstrap ─────────────────────────────────────────────
 document.getElementById("btn-reset").addEventListener("click", onReset);
 document.getElementById("btn-win-reset").addEventListener("click", onReset);
+
+// ── AI mode event listeners ────────────────────────────────
+modePvpEl.addEventListener("change", () => {
+  gameMode = "pvp";
+  apiKeyRowEl.classList.add("hidden");
+  onlineLobbyEl.classList.add("hidden");
+  p2AiBadgeEl.classList.add("hidden");
+  if (roomId) resetOnlineState();
+  onReset();
+});
+modePvaEl.addEventListener("change", () => {
+  gameMode = "pva";
+  apiKeyRowEl.classList.remove("hidden");
+  onlineLobbyEl.classList.add("hidden");
+  if (roomId) resetOnlineState();
+  // Restore saved key if any
+  apiKeyInputEl.value = localStorage.getItem("geminiApiKey") || "";
+  onReset();
+});
+modeOnlineEl.addEventListener("change", () => {
+  gameMode = "online";
+  apiKeyRowEl.classList.add("hidden");
+  onlineLobbyEl.classList.remove("hidden");
+  resetOnlineState();
+});
+document.getElementById("save-key-btn").addEventListener("click", () => {
+  const key = apiKeyInputEl.value.trim();
+  localStorage.setItem("geminiApiKey", key);
+  showHint(key ? "API key saved!" : "Key cleared.");
+  setTimeout(hideHint, 1600);
+});
+document.getElementById("btn-create-room").addEventListener("click", createRoom);
+document.getElementById("btn-join-room").addEventListener("click", () =>
+  joinRoom(joinCodeInputEl.value.trim().toUpperCase())
+);
 
 // ── API helpers ───────────────────────────────────────────
 async function apiFetch(path, opts = {}) {
@@ -46,12 +109,23 @@ async function apiFetch(path, opts = {}) {
 }
 
 async function onReset() {
-  selectedSize = null;
+  selectedSize     = null;
+  aiThinking       = false;
+  aiMoveScheduled  = false;
   hideHint();
-  const data = await apiFetch("/reset", { method: "POST" });
-  if (data && data.success) {
-    overlayEl.classList.add("hidden");
-    render(data.gameState);
+  if (gameMode === "online" && roomId) {
+    const data = await apiFetch(`/rooms/${roomId}/reset`, { method: "POST" });
+    if (data && data.success) {
+      overlayEl.classList.add("hidden");
+      render(data.gameState);
+      startPolling();
+    }
+  } else if (gameMode !== "online") {
+    const data = await apiFetch("/reset", { method: "POST" });
+    if (data && data.success) {
+      overlayEl.classList.add("hidden");
+      render(data.gameState);
+    }
   }
 }
 
@@ -111,6 +185,17 @@ function render(state) {
       hideHint();
     }
   }
+
+  // Show/hide AI badge on Player 2's zone
+  p2AiBadgeEl.classList.toggle("hidden", gameMode !== "pva");
+
+  // Auto-schedule AI move when it's the AI's turn
+  if (!state.gameOver && gameMode === "pva"
+      && state.currentPlayer === aiPlayer
+      && !aiThinking && !aiMoveScheduled) {
+    aiMoveScheduled = true;
+    setTimeout(triggerAiMove, 700);
+  }
 }
 
 function renderTray(trayEl, state, player, isActive) {
@@ -119,7 +204,10 @@ function renderTray(trayEl, state, player, isActive) {
     const count      = state.players[String(player)][size] ?? 0;
     const isEmpty    = count <= 0;
     const isSelected = isActive && !state.gameOver && selectedSize === size;
-    const isDisabled = !isActive || isEmpty || state.gameOver;
+    const isDisabled = !isActive || isEmpty || state.gameOver
+                    || (gameMode === "pva" && player === aiPlayer)
+                    || aiThinking
+                    || (gameMode === "online" && player !== myPlayer);
 
     const group = document.createElement("div");
     group.className = [
@@ -206,6 +294,9 @@ function makeEgg(player, size) {
 // ── Interactions ─────────────────────────────────────────
 function onPickSize(player, size) {
   if (!gameState || gameState.gameOver) return;
+  if (aiThinking) return;
+  if (gameMode === "pva" && player === aiPlayer) return;
+  if (gameMode === "online" && player !== myPlayer) return;
   if (gameState.currentPlayer !== player) return;
   if ((gameState.players[String(player)][size] ?? 0) <= 0) return;
 
@@ -234,6 +325,8 @@ function onPickSize(player, size) {
 
 async function onCellClick(cellIndex, isValid) {
   if (!gameState || gameState.gameOver) return;
+  if (aiThinking) return;
+  if (gameMode === "online" && gameState.currentPlayer !== myPlayer) return;
   if (!selectedSize) {
     showHint("Select a piece from your tray first");
     setTimeout(hideHint, 1600);
@@ -248,7 +341,8 @@ async function onCellClick(cellIndex, isValid) {
   lastPlaced   = cellIndex;
   hideHint();
 
-  const data = await apiFetch("/move", {
+  const endpoint = gameMode === "online" ? `/rooms/${roomId}/move` : "/move";
+  const data = await apiFetch(endpoint, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ player, size, cellIndex }),
@@ -258,6 +352,7 @@ async function onCellClick(cellIndex, isValid) {
 
   if (data.success) {
     render(data.gameState);
+    if (gameMode === "online" && !data.gameState.gameOver) startPolling();
   } else {
     // Restore selection on failure
     selectedSize = size;
@@ -275,6 +370,8 @@ async function onCellClick(cellIndex, isValid) {
 function onDragStart(e, player, size) {
   if (!gameState || gameState.gameOver) { e.preventDefault(); return; }
   if (gameState.currentPlayer !== player) { e.preventDefault(); return; }
+  if (aiThinking || (gameMode === "pva" && player === aiPlayer)) { e.preventDefault(); return; }
+  if (gameMode === "online" && player !== myPlayer) { e.preventDefault(); return; }
 
   dragState    = { player, size };
   selectedSize = null;
@@ -350,7 +447,8 @@ async function onCellDrop(e, cellIndex) {
   );
 
   lastPlaced = cellIndex;
-  const data = await apiFetch("/move", {
+  const dropEndpoint = gameMode === "online" ? `/rooms/${roomId}/move` : "/move";
+  const data = await apiFetch(dropEndpoint, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ player, size, cellIndex }),
@@ -358,11 +456,123 @@ async function onCellDrop(e, cellIndex) {
 
   if (data && data.success) {
     render(data.gameState);
+    if (gameMode === "online" && !data.gameState.gameOver) startPolling();
   } else if (data) {
     lastPlaced = -1;
     showHint(data.message ?? "Invalid move");
     setTimeout(hideHint, 1800);
     renderBoard(gameState);
+  }
+}
+
+// ── Online room ───────────────────────────────────────────
+function resetOnlineState() {
+  stopPolling();
+  roomId   = null;
+  myPlayer = null;
+  if (lobbyWaitingEl)  lobbyWaitingEl.classList.add("hidden");
+  if (lobbyCreateEl)   lobbyCreateEl.classList.remove("hidden");
+  overlayEl.classList.add("hidden");
+}
+
+async function createRoom() {
+  const data = await apiFetch("/rooms", { method: "POST" });
+  if (!data?.success) return;
+  roomId   = data.roomId;
+  myPlayer = 1;
+  lobbyCreateEl.classList.add("hidden");
+  lobbyWaitingEl.classList.remove("hidden");
+  roomCodeDisplayEl.textContent = roomId;
+  waitingMsgEl.textContent = "Waiting for Player 2…";
+  startPolling();
+}
+
+async function joinRoom(code) {
+  if (!code || code.length !== 6) {
+    showHint("Enter a 6-character room code");
+    setTimeout(hideHint, 1800);
+    return;
+  }
+  const data = await apiFetch(`/rooms/${code}/join`, { method: "POST" });
+  if (!data?.success) {
+    showHint(data?.message ?? "Could not join room");
+    setTimeout(hideHint, 2000);
+    return;
+  }
+  roomId   = data.roomId;
+  myPlayer = 2;
+  lobbyCreateEl.classList.add("hidden");
+  lobbyWaitingEl.classList.remove("hidden");
+  roomCodeDisplayEl.textContent = roomId;
+  waitingMsgEl.textContent = "Joined! Game starting…";
+  startPolling();
+}
+
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(pollRoomState, 1200);
+  pollRoomState();   // immediate first tick
+}
+
+function stopPolling() {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+async function pollRoomState() {
+  if (!roomId) return;
+  const data = await apiFetch(`/rooms/${roomId}/state`);
+  if (!data?.success) return;
+
+  // P1 waiting for P2 to join
+  if (!data.player2Joined) {
+    waitingMsgEl.textContent = "Waiting for Player 2…";
+    return;
+  }
+
+  // Both players present — hide lobby and show the board
+  if (!onlineLobbyEl.classList.contains("hidden")) {
+    onlineLobbyEl.classList.add("hidden");
+  }
+
+  render(data.gameState);
+
+  // Stop polling when it's my turn or game is over
+  if (data.gameState.gameOver || data.gameState.currentPlayer === myPlayer) {
+    stopPolling();
+  }
+}
+
+// ── AI move ───────────────────────────────────────────────
+async function triggerAiMove() {
+  if (gameMode !== "pva" || !gameState || gameState.gameOver) {
+    aiThinking = aiMoveScheduled = false;
+    return;
+  }
+  if (gameState.currentPlayer !== aiPlayer || aiThinking) return;
+
+  aiThinking = true;
+  aiThinkingEl.classList.remove("hidden");
+
+  const apiKey = localStorage.getItem("geminiApiKey") || "";
+  const data   = await apiFetch("/ai-move", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ aiPlayer, apiKey }),
+  });
+
+  aiThinking      = false;
+  aiMoveScheduled = false;
+  aiThinkingEl.classList.add("hidden");
+
+  if (data && data.success) {
+    lastPlaced = data.aiMove.cellIndex;
+    render(data.gameState);
+  } else if (data) {
+    showHint(data.message ?? "AI failed to move");
+    setTimeout(hideHint, 2000);
   }
 }
 

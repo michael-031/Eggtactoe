@@ -17,11 +17,51 @@
       <span class="title-egg right">🥚</span>
     </header>
 
+    <!-- ── Mode selector ───────────────────────────────── -->
+    <div class="mode-bar">
+      <label class="mode-option">
+        <input type="radio" name="gameMode" id="mode-pvp" value="pvp" checked>
+        <span class="mode-label">👥 2 Players</span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="gameMode" id="mode-pva" value="pva">
+        <span class="mode-label">🤖 vs AI</span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="gameMode" id="mode-online" value="online">
+        <span class="mode-label">🌐 Online</span>
+      </label>
+    </div>
+    <div class="api-key-row hidden" id="api-key-row">
+      <input type="password" id="api-key-input"
+             placeholder="Gemini API key — free at aistudio.google.com">
+      <button class="btn-save-key" id="save-key-btn">Save</button>
+    </div>
+
+    <!-- ── Online lobby ─────────────────────────────────── -->
+    <div class="online-lobby hidden" id="online-lobby">
+      <div class="lobby-create" id="lobby-create">
+        <button class="btn-create-room" id="btn-create-room">Create Room</button>
+        <p class="lobby-or">— or —</p>
+        <div class="lobby-join-row">
+          <input type="text" id="join-code-input"
+                 placeholder="Room code" maxlength="6" autocomplete="off">
+          <button class="btn-join-room" id="btn-join-room">Join</button>
+        </div>
+      </div>
+      <div class="lobby-waiting hidden" id="lobby-waiting">
+        <p class="room-code-label">Room code</p>
+        <div class="room-code-display" id="room-code-display">——</div>
+        <p class="waiting-msg" id="waiting-msg">Waiting for Player 2…</p>
+      </div>
+    </div>
+
     <!-- ── Player 2 (top) ──────────────────────────────── -->
     <section class="player-zone p2-zone" id="p2-zone">
       <div class="player-header">
         <div class="player-crown p2-crown">♛</div>
         <span class="player-name" id="p2-name">Player 2</span>
+        <span class="ai-badge hidden" id="p2-ai-badge">🤖 AI</span>
         <div class="turn-pip" id="p2-pip"></div>
       </div>
       <div class="piece-tray" id="p2-tray"></div>
@@ -34,6 +74,11 @@
         <div class="board-ring-inner"></div>
         <div class="board-grid" id="board-grid">
           <!-- 9 cells injected by JS -->
+        </div>
+        <!-- AI thinking overlay -->
+        <div class="ai-thinking hidden" id="ai-thinking">
+          <div class="ai-spinner"></div>
+          <span>Gemini is thinking…</span>
         </div>
       </div>
     </main>
