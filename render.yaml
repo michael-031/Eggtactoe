@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: eggtactoe
+    env: python
+    buildCommand: pip install --upgrade pip && pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT --workers 4 server:app
+    envVars:
+      - key: PORT
+        value: 10000
