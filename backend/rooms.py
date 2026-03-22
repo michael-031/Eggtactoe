@@ -12,6 +12,8 @@ Room dict shape:
 {
     "game":          EggChessGame instance,
     "player2Joined": bool,
+    "hostPlayer":    int (1 or 2 for current game),
+    "guestPlayer":   int (1 or 2 for current game),
     "lastActivity":  float  (Unix timestamp),
 }
 """
@@ -38,6 +40,8 @@ def create_room() -> str:
     _rooms[rid] = {
         "game": EggChessGame(),
         "player2Joined": False,
+        "hostPlayer": 1,
+        "guestPlayer": 2,
         "lastActivity": time.time(),
     }
     return rid
@@ -72,3 +76,14 @@ def cleanup_expired() -> None:
     expired = [rid for rid, r in list(_rooms.items()) if r["lastActivity"] < cutoff]
     for rid in expired:
         del _rooms[rid]
+
+
+def reset_room_game(room: dict) -> None:
+    """Reset room game; swap host/guest sides after completed games."""
+    finished_game = room["game"].game_over
+    room["game"].reset()
+    if finished_game:
+        room["hostPlayer"], room["guestPlayer"] = (
+            room["guestPlayer"],
+            room["hostPlayer"],
+        )

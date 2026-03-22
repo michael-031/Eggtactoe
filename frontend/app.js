@@ -26,7 +26,8 @@ let aiMoveScheduled = false; // prevents double setTimeout scheduling
 
 // ── Online mode state ──────────────────────────────────────
 let roomId    = null;   // active room code, e.g. "XK8M2P"
-let myPlayer  = null;   // 1 | 2 | null  (null = not in a room)
+let myRole    = null;   // "host" | "guest" | null
+let myPlayer  = null;   // current game side: 1 | 2 | null
 let pollTimer = null;   // setInterval ID for state polling
 
 // ── DOM refs ──────────────────────────────────────────────
@@ -120,6 +121,7 @@ async function onReset() {
   if (gameMode === "online" && roomId) {
     const data = await apiFetch(`/rooms/${roomId}/reset`, { method: "POST" });
     if (data && data.success) {
+      syncOnlinePlayer(data);
       overlayEl.classList.add("hidden");
       render(data.gameState);
       startPolling();
@@ -338,7 +340,8 @@ async function onCellClick(cellIndex, isValid) {
   }
   if (!isValid) return;
 
-  const player = gameState.currentPlayer;
+  const player = gameMode === "online" ? myPlayer : gameState.currentPlayer;
+  if (player === null) return;
   const size   = selectedSize;   // capture before clearing
 
   selectedSize = null;
@@ -470,9 +473,19 @@ async function onCellDrop(e, cellIndex) {
 }
 
 // ── Online room ───────────────────────────────────────────
+function syncOnlinePlayer(roomState) {
+  if (!roomState) return;
+  if (myRole === "host") {
+    myPlayer = roomState.hostPlayer ?? myPlayer;
+  } else if (myRole === "guest") {
+    myPlayer = roomState.guestPlayer ?? myPlayer;
+  }
+}
+
 function resetOnlineState() {
   stopPolling();
   roomId   = null;
+  myRole   = null;
   myPlayer = null;
   if (lobbyWaitingEl)  lobbyWaitingEl.classList.add("hidden");
   if (lobbyCreateEl)   lobbyCreateEl.classList.remove("hidden");
@@ -483,7 +496,8 @@ async function createRoom() {
   const data = await apiFetch("/rooms", { method: "POST" });
   if (!data?.success) return;
   roomId   = data.roomId;
-  myPlayer = 1;
+  myRole   = "host";
+  syncOnlinePlayer(data);
   lobbyCreateEl.classList.add("hidden");
   lobbyWaitingEl.classList.remove("hidden");
   roomCodeDisplayEl.textContent = roomId;
@@ -504,7 +518,8 @@ async function joinRoom(code) {
     return;
   }
   roomId   = data.roomId;
-  myPlayer = 2;
+  myRole   = "guest";
+  syncOnlinePlayer(data);
   lobbyCreateEl.classList.add("hidden");
   lobbyWaitingEl.classList.remove("hidden");
   roomCodeDisplayEl.textContent = roomId;
@@ -529,6 +544,7 @@ async function pollRoomState() {
   if (!roomId) return;
   const data = await apiFetch(`/rooms/${roomId}/state`);
   if (!data?.success) return;
+  syncOnlinePlayer(data);
 
   // P1 waiting for P2 to join
   if (!data.player2Joined) {

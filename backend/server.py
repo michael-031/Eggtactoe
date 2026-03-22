@@ -9,7 +9,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from game import EggChessGame
 from ai import get_ai_move
-from rooms import create_room, join_room, get_room, cleanup_expired
+from rooms import create_room, join_room, get_room, cleanup_expired, reset_room_game
 
 app = Flask(__name__)
 CORS(app)
@@ -87,6 +87,8 @@ def _room_state(room: dict, rid: str) -> dict:
     return {
         "roomId":        rid,
         "player2Joined": room["player2Joined"],
+        "hostPlayer":    room["hostPlayer"],
+        "guestPlayer":   room["guestPlayer"],
         "gameState":     room["game"].get_state(),
     }
 
@@ -97,7 +99,14 @@ def _room_state(room: dict, rid: str) -> dict:
 def create_room_route():
     cleanup_expired()
     rid = create_room()
-    return jsonify({"success": True, "roomId": rid, "playerNumber": 1})
+    room = get_room(rid)
+    return jsonify({
+        "success": True,
+        "roomId": rid,
+        "playerNumber": 1,
+        "role": "host",
+        **_room_state(room, rid),
+    })
 
 
 @app.post("/api/rooms/<rid>/join")
@@ -105,7 +114,13 @@ def join_room_route(rid):
     room, err = join_room(rid.upper())
     if err:
         return jsonify({"success": False, "message": err}), 400
-    return jsonify({"success": True, "roomId": rid.upper(), "playerNumber": 2})
+    return jsonify({
+        "success": True,
+        "roomId": rid.upper(),
+        "playerNumber": 2,
+        "role": "guest",
+        **_room_state(room, rid.upper()),
+    })
 
 
 @app.get("/api/rooms/<rid>/state")
@@ -128,7 +143,7 @@ def room_move_route(rid):
         int(data["player"]), data["size"], int(data["cellIndex"])
     )
     if result["success"]:
-        return jsonify({"success": True, "gameState": result["gameState"]})
+        return jsonify({"success": True, **_room_state(room, rid.upper())})
     return jsonify(result), 400
 
 
@@ -137,8 +152,8 @@ def room_reset_route(rid):
     room = get_room(rid.upper())
     if not room:
         return jsonify({"success": False, "message": "Room not found"}), 404
-    room["game"].reset()
-    return jsonify({"success": True, "gameState": room["game"].get_state()})
+    reset_room_game(room)
+    return jsonify({"success": True, **_room_state(room, rid.upper())})
 
 
 if __name__ == "__main__":
